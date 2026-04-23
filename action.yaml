@@ -1,4 +1,4 @@
-name: Install goss
+name: action-install-goss
 description: GitHub Action that installs goss
 
 author: CDQ AG
