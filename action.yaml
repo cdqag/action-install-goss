@@ -1,0 +1,88 @@
+name: Install goss
+description: GitHub Action that installs goss
+
+author: CDQ AG
+branding:
+  icon: package
+  color: green
+
+inputs:
+  version:
+    description: goss version to install
+    default: latest
+
+runs:
+  using: composite
+  steps:
+    - name: Check version
+      id: version
+      shell: bash
+      env:
+        TAG: ${{ inputs.version }}
+      run: |
+        if [ "$TAG" == "latest" ]; then
+          echo "Fetching latest goss version from GitHub API..."
+          TAG=$(curl -s https://api.github.com/repos/goss-org/goss/releases/latest | jq -r '.tag_name')
+          echo "Latest version is $TAG"
+        fi
+
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+    - name: Prepare environment
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        GOSS_PATH="$ACTION_PATH/.bin"
+        echo "GOSS_PATH=$GOSS_PATH" >> $GITHUB_ENV
+        mkdir -p "$GOSS_PATH"
+        echo "Created directory $GOSS_PATH"
+
+        echo "PATH=$GOSS_PATH:$PATH" >> $GITHUB_ENV
+
+    - name: Download goss
+      shell: bash
+      env:
+        TAG: ${{ steps.version.outputs.tag }}
+      run: |
+        this_os=$(echo "$RUNNER_OS" | tr '[:upper:]' '[:lower:]')
+        this_arch=$(echo "$RUNNER_ARCH" | tr '[:upper:]' '[:lower:]')
+
+        if [ "$this_arch" == "x64" ]; then
+          this_arch="amd64"
+        fi
+
+        if [ "$this_os" == "macos" ]; then
+          this_os="darwin"
+        fi
+
+        goss_file="goss-${this_os}-${this_arch}"
+        echo "GOSS file: $goss_file"
+
+        function download() {
+          local remote_file_name="$1"
+          local local_file_name="$2"
+          if [[ -z "$local_file_name" ]]; then
+            local_file_name="$remote_file_name"
+          fi
+
+          local download_url="https://github.com/goss-org/goss/releases/download/${TAG}/${remote_file_name}"
+          echo "Downloading ${download_url}..."
+          curl -sL --fail-with-body "${download_url}" -o "$GOSS_PATH/${local_file_name}"
+          echo "OK"
+
+          echo "Making ${local_file_name} executable..."
+          chmod +x "$GOSS_PATH/${local_file_name}"
+          echo "Done"
+        }
+
+        download "$goss_file" "goss"
+        download "kgoss"
+        download "dgoss"
+
+        echo "Finished"
+
+    - name: Verify installation
+      shell: bash
+      run: |
+        goss --version
