@@ -21,7 +21,9 @@ runs:
         TAG: ${{ inputs.version }}
       run: |
         if [ "$TAG" == "latest" ]; then
+          echo "Fetching latest goss version from GitHub API..."
           TAG=$(curl -s https://api.github.com/repos/goss-org/goss/releases/latest | jq -r '.tag_name')
+          echo "Latest version is $TAG"
         fi
 
         echo "tag=$TAG" >> $GITHUB_OUTPUT
@@ -34,6 +36,7 @@ runs:
         GOSS_PATH="$ACTION_PATH/.bin"
         echo "GOSS_PATH=$GOSS_PATH" >> $GITHUB_ENV
         mkdir -p "$GOSS_PATH"
+        echo "Created directory $GOSS_PATH"
 
         echo "PATH=$GOSS_PATH:$PATH" >> $GITHUB_ENV
 
@@ -54,6 +57,7 @@ runs:
         fi
 
         goss_file="goss-${this_os}-${this_arch}"
+        echo "GOSS file: $goss_file"
 
         function download() {
           local remote_file_name="$1"
@@ -62,8 +66,9 @@ runs:
             local_file_name="$remote_file_name"
           fi
 
-          echo "Downloading ${remote_file_name}..."
-          curl -sL --fail-with-body "https://raw.githubusercontent.com/goss-org/goss/refs/tags/${TAG}/${remote_file_name}" -o "$GOSS_PATH/${local_file_name}"
+          local download_url="https://github.com/goss-org/goss/releases/download/${TAG}/${remote_file_name}"
+          echo "Downloading ${download_url}..."
+          curl -sL --fail-with-body "${download_url}" -o "$GOSS_PATH/${local_file_name}"
           echo "OK"
 
           echo "Making ${local_file_name} executable..."
