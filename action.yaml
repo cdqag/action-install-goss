@@ -21,9 +21,11 @@ runs:
         TAG: ${{ inputs.version }}
       run: |
         if [ "$TAG" == "latest" ]; then
-          echo "Fetching latest goss version from GitHub API..."
+          echo "ℹ️ Fetching latest goss version from GitHub API..."
           TAG=$(curl -s https://api.github.com/repos/goss-org/goss/releases/latest | jq -r '.tag_name')
-          echo "Latest version is $TAG"
+          echo "ℹ️ Latest version is $TAG"
+        else
+          echo "ℹ️ Using specified version: $TAG"
         fi
 
         echo "tag=$TAG" >> $GITHUB_OUTPUT
@@ -33,18 +35,26 @@ runs:
       env:
         ACTION_PATH: ${{ github.action_path }}
       run: |
-        GOSS_PATH="$ACTION_PATH/.bin"
-        echo "GOSS_PATH=$GOSS_PATH" >> $GITHUB_ENV
-        mkdir -p "$GOSS_PATH"
-        echo "Created directory $GOSS_PATH"
+        echo "ℹ️ Preparing GOSS_HOME..."
+        GOSS_HOME="$ACTION_PATH/.bin"
+        echo "GOSS_HOME=$GOSS_HOME" >> $GITHUB_ENV
+        mkdir -p "$GOSS_HOME"
+        echo "ℹ️ OK. Created directory $GOSS_HOME"
 
-        echo "PATH=$GOSS_PATH:$PATH" >> $GITHUB_ENV
+        echo "ℹ️ Setting up GOSS_PATH..."
+        echo "GOSS_PATH=$GOSS_HOME/goss" >> $GITHUB_ENV
+        echo "ℹ️ OK"
+
+        echo "ℹ️ Adding GOSS_HOME to PATH..."
+        echo "PATH=$GOSS_HOME:$PATH" >> $GITHUB_ENV
+        echo "ℹ️ OK"
 
     - name: Download goss
       shell: bash
       env:
         TAG: ${{ steps.version.outputs.tag }}
       run: |
+        echo "ℹ️ Preparing goss file name for OS and architecture..."
         this_os=$(echo "$RUNNER_OS" | tr '[:upper:]' '[:lower:]')
         this_arch=$(echo "$RUNNER_ARCH" | tr '[:upper:]' '[:lower:]')
 
@@ -57,7 +67,7 @@ runs:
         fi
 
         goss_file="goss-${this_os}-${this_arch}"
-        echo "GOSS file: $goss_file"
+        echo "ℹ️ OK. GOSS file: $goss_file"
 
         function download() {
           local remote_file_name="$1"
@@ -67,22 +77,24 @@ runs:
           fi
 
           local download_url="https://github.com/goss-org/goss/releases/download/${TAG}/${remote_file_name}"
-          echo "Downloading ${download_url}..."
-          curl -sL --fail-with-body "${download_url}" -o "$GOSS_PATH/${local_file_name}"
-          echo "OK"
+          echo "ℹ️ Downloading ${download_url}..."
+          curl -sL --fail-with-body "${download_url}" -o "$GOSS_HOME/${local_file_name}"
+          echo "ℹ️ OK"
 
-          echo "Making ${local_file_name} executable..."
-          chmod +x "$GOSS_PATH/${local_file_name}"
-          echo "Done"
+          echo "ℹ️ Making ${local_file_name} executable..."
+          chmod +x "$GOSS_HOME/${local_file_name}"
+          echo "ℹ️ OK"
         }
 
         download "$goss_file" "goss"
         download "kgoss"
         download "dgoss"
 
-        echo "Finished"
+        echo "ℹ️ Done"
 
     - name: Verify installation
       shell: bash
       run: |
+        echo "ℹ️ Verifying goss installation..."
         goss --version
+        echo "ℹ️ OK"
